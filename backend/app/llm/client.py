@@ -149,14 +149,18 @@ class MockLLMClient(LLMClient):
             question = _extract_between(user, "Research question:", "\n")
             return {
                 "subquestions": [
-                    f"What are the main approaches related to: {question}?",
-                    f"What evidence or data exists about: {question}?",
-                    f"What are the limitations or open problems in: {question}?",
-                ],
-                "search_queries": [
-                    question,
-                    f"{question} research",
-                    f"{question} limitations",
+                    {
+                        "subquestion": f"What are the main approaches related to: {question}?",
+                        "search_queries": [question],
+                    },
+                    {
+                        "subquestion": f"What evidence or data exists about: {question}?",
+                        "search_queries": [f"{question} research"],
+                    },
+                    {
+                        "subquestion": f"What are the limitations or open problems in: {question}?",
+                        "search_queries": [f"{question} limitations"],
+                    },
                 ],
                 "rationale": "Mock planner: decomposed question into approach, evidence, and limitations angles.",
             }

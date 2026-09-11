@@ -423,6 +423,11 @@ a {
   padding: 14px;
 }
 
+.grounding-bar {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
 .stat {
   display: flex;
   flex-direction: column;

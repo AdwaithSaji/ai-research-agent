@@ -47,7 +47,7 @@ async def run_research_job(
         await job_store.update_stage(
             job_id, Stage.searching, f"Searching {len(plan.search_queries)} quer(y/ies)..."
         )
-        sources, searches_performed = await gather_sources(
+        sources, gather_stats = await gather_sources(
             plan,
             search_provider,
             settings,
@@ -73,7 +73,9 @@ async def run_research_job(
 
         duration = time.monotonic() - start
         usage = UsageStats(
-            searches_performed=searches_performed,
+            searches_performed=gather_stats.searches_performed,
+            queries_attempted=gather_stats.queries_attempted,
+            queries_with_results=gather_stats.queries_with_results,
             sources_retrieved=len(sources),
             sources_used=len(report.sources),
             llm_calls=llm.usage.calls,
@@ -81,7 +83,7 @@ async def run_research_job(
             completion_tokens=llm.usage.completion_tokens,
             estimated_cost_usd=round(llm.usage.estimated_cost_usd, 6),
             duration_seconds=round(duration, 2),
-            cache_hits=0,
+            cache_hits=gather_stats.cache_hits,
         )
 
         job = ResearchJob(

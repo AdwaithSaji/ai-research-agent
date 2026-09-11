@@ -1,42 +1,24 @@
 [
-  {
-    "id": "hallucination-reduction",
-    "question": "Compare current approaches for reducing hallucinations in large language models.",
-    "depth": "standard"
-  },
-  {
-    "id": "rag-vs-finetuning",
-    "question": "What are the tradeoffs between retrieval-augmented generation and fine-tuning for domain adaptation?",
-    "depth": "standard"
-  },
-  {
-    "id": "vector-db-choice",
-    "question": "What factors should guide the choice of a vector database for a production RAG system?",
-    "depth": "quick"
-  },
-  {
-    "id": "llm-evaluation-metrics",
-    "question": "What metrics are commonly used to evaluate the factual accuracy of language model outputs?",
-    "depth": "standard"
-  },
-  {
-    "id": "agentic-workflows",
-    "question": "What are the main design patterns for building reliable multi-step AI agent workflows?",
-    "depth": "standard"
-  },
-  {
-    "id": "prompt-injection-defense",
-    "question": "What are effective defenses against prompt injection attacks on LLM applications?",
-    "depth": "quick"
-  },
-  {
-    "id": "context-window-tradeoffs",
-    "question": "What are the practical tradeoffs of very long context windows versus retrieval for LLM applications?",
-    "depth": "standard"
-  },
-  {
-    "id": "open-vs-closed-models",
-    "question": "How do open-weight language models compare to closed commercial models for enterprise use?",
-    "depth": "standard"
-  }
+  { "id": "hallucination-reduction", "category": "generative-ai", "question": "Compare current approaches for reducing hallucinations in large language models.", "depth": "standard" },
+  { "id": "rag-vs-finetuning", "category": "generative-ai", "question": "What are the tradeoffs between retrieval-augmented generation and fine-tuning for domain adaptation?", "depth": "standard" },
+  { "id": "vector-db-choice", "category": "ai-ml", "question": "What factors should guide the choice of a vector database for a production RAG system?", "depth": "quick" },
+  { "id": "llm-evaluation-metrics", "category": "ai-ml", "question": "What metrics are commonly used to evaluate the factual accuracy of language model outputs?", "depth": "standard" },
+  { "id": "agentic-workflows", "category": "ai-ml", "question": "What are the main design patterns for building reliable multi-step AI agent workflows?", "depth": "standard" },
+  { "id": "prompt-injection-defense", "category": "cybersecurity", "question": "What are effective defenses against prompt injection attacks on LLM applications?", "depth": "quick" },
+  { "id": "context-window-tradeoffs", "category": "ai-ml", "question": "What are the practical tradeoffs of very long context windows versus retrieval for LLM applications?", "depth": "standard" },
+  { "id": "open-vs-closed-models", "category": "ai-ml", "question": "How do open-weight language models compare to closed commercial models for enterprise use?", "depth": "standard" },
+  { "id": "model-distillation", "category": "ai-ml", "question": "How does knowledge distillation reduce the size and cost of large neural networks?", "depth": "quick" },
+  { "id": "diffusion-vs-gan", "category": "generative-ai", "question": "How do diffusion models compare to GANs for image generation quality and training stability?", "depth": "standard" },
+  { "id": "ai-code-review", "category": "software-engineering", "question": "How effective are AI coding assistants at catching real bugs during code review?", "depth": "standard" },
+  { "id": "microservices-vs-monolith", "category": "software-engineering", "question": "When does a microservices architecture provide clear advantages over a monolith?", "depth": "standard" },
+  { "id": "technical-debt-management", "category": "software-engineering", "question": "What practices help engineering teams manage and reduce technical debt over time?", "depth": "quick" },
+  { "id": "zero-trust-architecture", "category": "cybersecurity", "question": "What are the core principles of zero trust network architecture?", "depth": "standard" },
+  { "id": "ransomware-defense", "category": "cybersecurity", "question": "What are the most effective organizational defenses against ransomware attacks?", "depth": "standard" },
+  { "id": "supply-chain-security", "category": "cybersecurity", "question": "How can organizations detect and prevent software supply chain attacks?", "depth": "standard" },
+  { "id": "quantum-computing-progress", "category": "science-tech", "question": "What is the current state of progress toward practical, fault-tolerant quantum computing?", "depth": "standard" },
+  { "id": "crispr-gene-editing", "category": "science-tech", "question": "What are the current medical applications and limitations of CRISPR gene editing?", "depth": "standard" },
+  { "id": "climate-carbon-capture", "category": "science-tech", "question": "How effective is direct air carbon capture technology at meaningful scale today?", "depth": "standard" },
+  { "id": "renewable-grid-storage", "category": "science-tech", "question": "What energy storage technologies are most promising for stabilizing renewable-heavy power grids?", "depth": "quick" },
+  { "id": "remote-work-productivity", "category": "general-research", "question": "What does research show about the effect of remote work on employee productivity?", "depth": "standard" },
+  { "id": "intermittent-fasting", "category": "general-research", "question": "What is the current scientific consensus on intermittent fasting and long-term health outcomes?", "depth": "standard" }
 ]

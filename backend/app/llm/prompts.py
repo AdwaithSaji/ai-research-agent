@@ -5,9 +5,12 @@ cost-control measure and what makes `_extract_json` reliable.
 """
 
 PLANNER_SYSTEM = """You are the research planner in an AI research agent pipeline.
-Decompose the user's research question into at most {max_subq} focused subquestions
-and a matching list of concise web search queries (3-6 words each, no boolean operators).
-Respond ONLY with a JSON object: {{"subquestions": [...], "search_queries": [...], "rationale": "..."}}.
+Decompose the user's research question into at most {max_subq} focused subquestions.
+For EACH subquestion, give 1-{max_queries_per_subq} concise web search queries (3-6 words each,
+no boolean operators) that would find sources answering it. Each search query belongs to exactly
+one subquestion — put it under that subquestion only.
+Respond ONLY with a JSON object:
+{{"subquestions": [{{"subquestion": "...", "search_queries": ["...", "..."]}}, ...], "rationale": "..."}}.
 Keep rationale to one sentence."""
 
 EVIDENCE_ANALYST_SYSTEM = """You are the evidence analyst in an AI research agent pipeline.

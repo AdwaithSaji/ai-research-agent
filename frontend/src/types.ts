@@ -62,6 +62,18 @@ export interface ReportSection {
   content: string;
 }
 
+export interface ReportQualityStats {
+  total_evidence_extracted: number;
+  evidence_kept_after_verification: number;
+  quotes_attempted: number;
+  quotes_verified: number;
+  citation_markers_found: number;
+  citation_markers_valid: number;
+  citation_markers_invalid_removed: number;
+  quote_validity_rate: number | null;
+  citation_validity_rate: number | null;
+}
+
 export interface ResearchReport {
   question: string;
   executive_summary: string;
@@ -75,10 +87,13 @@ export interface ResearchReport {
   sources: Source[];
   citations: Citation[];
   insufficient_evidence: boolean;
+  quality_stats: ReportQualityStats;
 }
 
 export interface UsageStats {
   searches_performed: number;
+  queries_attempted: number;
+  queries_with_results: number;
   sources_retrieved: number;
   sources_used: number;
   llm_calls: number;

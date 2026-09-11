@@ -17,11 +17,13 @@ from app.models.schemas import (
     Citation,
     Conflict,
     Evidence,
+    ReportQualityStats,
     ReportSection,
     ResearchReport,
     Source,
     VerificationResult,
 )
+from app.services.citation_validator import sanitize_many
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +83,9 @@ async def synthesize_report(
 
     citations = [Citation(marker=m, source_id=sid) for sid, m in marker_by_source.items()]
 
+    quotes_attempted = sum(1 for e in evidence if e.quote.strip())
+    quotes_verified = sum(1 for e in evidence if e.quote_verified)
+
     if not kept_evidence:
         return ResearchReport(
             question=question,
@@ -98,6 +103,12 @@ async def synthesize_report(
             sources=used_sources,
             citations=citations,
             insufficient_evidence=True,
+            quality_stats=ReportQualityStats(
+                total_evidence_extracted=len(evidence),
+                evidence_kept_after_verification=0,
+                quotes_attempted=quotes_attempted,
+                quotes_verified=quotes_verified,
+            ),
         )
 
     evidence_lines = "\n".join(
@@ -126,6 +137,14 @@ async def synthesize_report(
     )
     conclusion = str(data.get("conclusion", "")).strip() or "No conclusion generated."
 
+    # Deterministic citation-marker guarantee: strip any [n] marker the LLM
+    # wrote that doesn't correspond to a source actually cited above. The
+    # model is never trusted to have gotten this right on its own.
+    valid_markers = set(marker_by_source.values())
+    fields_to_check = [executive_summary, analysis, conclusion, *key_findings]
+    cleaned_fields, citation_stats = sanitize_many(fields_to_check, valid_markers)
+    executive_summary, analysis, conclusion, *key_findings = cleaned_fields
+
     return ResearchReport(
         question=question,
         executive_summary=executive_summary,
@@ -139,4 +158,13 @@ async def synthesize_report(
         sources=used_sources,
         citations=citations,
         insufficient_evidence=insufficient,
+        quality_stats=ReportQualityStats(
+            total_evidence_extracted=len(evidence),
+            evidence_kept_after_verification=len(kept_evidence),
+            quotes_attempted=quotes_attempted,
+            quotes_verified=quotes_verified,
+            citation_markers_found=citation_stats.markers_found,
+            citation_markers_valid=citation_stats.markers_valid,
+            citation_markers_invalid_removed=citation_stats.markers_invalid_removed,
+        ),
     )

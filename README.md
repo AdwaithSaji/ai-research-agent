@@ -46,15 +46,29 @@ the actual job of building production LLM systems, not just prompting one.
 - Conflict detection between disagreeing sources, surfaced explicitly rather
   than silently merged
 - Every citation marker is assigned in code from an actually-retrieved
-  source — the model cannot introduce a source that wasn't retrieved
-  - Progress streamed live to the UI via Server-Sent Events (Planning →
+  source, then **re-validated after synthesis**: any `[n]` marker the model
+  writes that wasn't actually assigned is stripped deterministically, never
+  trusted (`app/services/citation_validator.py`)
+- Every extracted quote is **deterministically checked** against the actual
+  retrieved page text (normalized substring match, not an LLM's say-so)
+  before being treated as verified (`app/services/quote_verification.py`)
+- Evidence-extraction context is selected by **paragraph-level relevance
+  scoring**, not a naive character prefix — the paragraphs most related to
+  the subquestion are kept, wherever they fall on the page
+  (`app/services/context_selection.py`)
+- Subquestion ↔ search-query mapping is an **explicit data relationship**
+  (`Subquestion → SearchQuery[]`), not inferred positionally
+- Conflict detection between disagreeing sources, surfaced explicitly rather
+  than silently merged
+- Progress streamed live to the UI via Server-Sent Events (Planning →
   Searching → Analyzing → Verifying → Synthesizing)
 - Runs fully offline with zero API keys (mock LLM + mock search) for
   demos/CI, or with real search only (free) for a genuinely retrieval-backed
   run at zero LLM cost
-- Usage/cost tracking on every run: searches, sources, LLM calls, tokens,
-  estimated cost, latency
-- A small, honest local evaluation harness (see [Evaluation](#evaluation))
+- Usage/cost tracking on every run: searches, cache hits, sources, LLM
+  calls, tokens, estimated cost, latency
+- A small, honest local evaluation harness over 22 questions across 6
+  categories (see [Evaluation](#evaluation))
 
 ## Demo instructions
 
@@ -111,16 +125,23 @@ hard caps on subquestions, queries, sources, and concurrent requests.
 ## How the agent works
 
 1. **Planner** (`app/agent/planner.py`) — one LLM call decomposes the
-   question into up to 2-4 subquestions (by depth) and matching search
-   queries, deduplicated case-insensitively.
+   question into up to 2-4 subquestions (by depth), each carrying its own
+   `search_queries` list (`SubquestionPlan` in `app/models/schemas.py`) —
+   an explicit relationship, not two parallel lists matched up positionally.
 2. **Researcher** (`app/agent/researcher.py`) — pure tool-calling, no LLM:
    runs each query against the search provider, dedupes by URL, caps sources
    per domain (diversity), fetches pages concurrently (bounded semaphore,
    timeouts + retries), and extracts main-content text via BeautifulSoup.
+   Tracks cache hits/misses and per-query search success for usage stats.
 3. **Evidence Analyst** (`app/agent/evidence.py`) — deterministically ranks
    fetched sources by lexical relevance to their subquestion, keeps only the
    top N, then makes one bounded LLM call *per kept source* (not per
    fetched source) to extract at most 3 claims, each with a verbatim quote.
+   The context sent to the model is selected by paragraph-relevance scoring
+   (`app/services/context_selection.py`), and every returned quote is
+   immediately checked against the source's full retrieved text
+   (`app/services/quote_verification.py`) — `Evidence.quote_verified` is set
+   by that check, never by the model's own claim.
 4. **Verifier** (`app/agent/verifier.py`) — drops evidence from sources below
    a quality floor deterministically, then makes a **single batched** LLM
    call over all remaining claims to flag cross-source conflicts and
@@ -128,20 +149,64 @@ hard caps on subquestions, queries, sources, and concurrent requests.
 5. **Synthesizer** (`app/agent/synthesizer.py`) — assigns citation markers in
    code (never left to the model), builds the deterministic Evidence section
    directly from verified claims, and makes one final LLM call — grounded
-   only in surviving evidence — for the narrative sections. If no evidence
+   only in surviving evidence — for the narrative sections. The model's
+   output is then swept for `[n]` markers by
+   `app/services/citation_validator.py`: any marker not in the assigned set
+   is stripped, and the resulting counts are recorded on
+   `report.quality_stats` (not just asserted in prose). If no evidence
    survives verification, it returns an explicit "insufficient evidence"
    report instead of asking the model to fill the gap.
 
-## Retrieval / citation approach
+## Citation grounding
+
+Citation IDs are **assigned and validated deterministically against
+retrieved sources** — never trusted to the LLM:
+
+1. The synthesizer assigns `[1]`, `[2]`, … in code, in order of first
+   evidence use, only to sources that actually produced surviving evidence.
+   The model is told which marker maps to which evidence and asked to reuse
+   it — it is never asked to invent one.
+2. **After** synthesis, every free-text field the model wrote (executive
+   summary, key findings, analysis, conclusion) is scanned for `[n]`
+   markers by `app/services/citation_validator.py`. Any marker that doesn't
+   match an assigned source is removed from the text (not replaced with a
+   fabricated stand-in), and the counts (`markers_found`, `markers_valid`,
+   `markers_invalid_removed`) are recorded on
+   `report.quality_stats`.
+3. The frontend renders `[n]` markers as jump links to the actual source
+   card, so every surviving claim is one click from its source.
+
+This guarantees the report can never cite a source that wasn't retrieved,
+regardless of what the model tries to write.
+
+## Evidence verification
+
+Each evidence claim carries a `quote` the model was asked to copy verbatim
+from the source. That quote is deterministically checked against the
+source's actual retrieved content
+(`app/services/quote_verification.py::verify_quote`) — substring matching
+after normalizing whitespace, smart quotes/dashes, and case, so harmless
+formatting differences don't cause false failures, but a genuine paraphrase
+correctly fails. The result is stored on `Evidence.quote_verified`; it is
+never rewritten into a "verified" quote if the check fails. Aggregate
+`quotes_attempted` / `quotes_verified` counts land on `report.quality_stats`.
+
+## Retrieval & content selection
 
 - Sources carry full provenance: title, URL, domain, source type, retrieval
-  timestamp, and the query that surfaced them.
-- Citation markers (`[1]`, `[2]`, …) are assigned by the synthesizer in code,
-  in order of first evidence use — the LLM is told which marker maps to
-  which evidence and asked to reuse it, never to invent one. Sources that
-  never produced surviving evidence never appear in the final report.
-- The frontend renders `[n]` markers as jump links to the actual source
-  card, so every claim is one click from its source.
+  timestamp, and the query (and subquestion — an explicit, non-positional
+  mapping) that surfaced them.
+- Relevance and content selection are both **lexical** (word-overlap
+  scoring, `app/services/relevance.py`), not semantic/embedding-based — see
+  [Limitations](#limitations). This is a deliberate scope decision, not an
+  oversight.
+- Instead of sending a naive character prefix of a page to the
+  evidence-extraction LLM call, `app/services/context_selection.py` splits
+  extracted text into paragraphs, scores each against the subquestion with
+  the same lexical relevance function used for source ranking, and keeps
+  the highest-scoring paragraphs — in original document order — up to the
+  character budget. This both improves what evidence gets extracted and
+  avoids spending tokens on boilerplate that happened to appear first.
 
 ## Source quality & conflicts
 
@@ -173,10 +238,14 @@ This was a first-class design constraint, not an afterthought:
   lexical-overlap score ranks fetched sources; only the top
   `MAX_SOURCES_FOR_EVIDENCE` get an LLM evidence-extraction call at all.
 - **One batched verifier call**, not one call per claim.
-- **Context trimming** — only `MAX_EVIDENCE_CHARS_PER_SOURCE` characters of
-  a page (not the whole page) go into the evidence-extraction prompt.
+- **Context trimming with relevance selection** — only
+  `MAX_EVIDENCE_CHARS_PER_SOURCE` characters go into the evidence-extraction
+  prompt, and those characters are the highest-relevance paragraphs (see
+  [Retrieval & content selection](#retrieval--content-selection)), not
+  whatever happened to come first on the page.
 - **Process-lifetime caching** (`app/services/cache.py`) — identical search
-  queries and page fetches within the TTL window are never repeated.
+  queries and page fetches within the TTL window are never repeated; actual
+  hit/miss counts are tracked per run (`usage.cache_hits`), not just assumed.
 - **Structured JSON outputs** everywhere — no free-form chat back-and-forth.
 - **Full usage tracking** on every run (searches, sources, LLM calls,
   tokens, estimated cost, duration) surfaced in the UI, so cost is visible,
@@ -188,23 +257,32 @@ This was a first-class design constraint, not an afterthought:
 
 See [`evaluation/README.md`](evaluation/README.md) for full methodology and
 honest limitations. Run it with `python evaluation/run_eval.py` (real search,
-mock LLM — free) or `--live` for a real LLM.
+mock LLM — free) or `--live` for a real LLM. Every run writes
+`evaluation/results/latest_results.json` (timestamped, mode-labeled,
+regenerated on demand — not committed, since it's a reproducible artifact,
+not a build output).
 
-### Results (8-question dataset, real DuckDuckGo search, mock LLM)
+### Illustrative results (22-question dataset, real DuckDuckGo search, mock LLM)
 
-| Metric | Value |
-|---|---|
-| Retrieval relevance (avg) | 0.523 |
-| Source diversity (avg) | 0.863 |
-| Report completeness (avg) | 1.0 |
-| Insufficient-evidence rate | 0.0 (every question found usable sources) |
-| Avg latency | ~16.0s |
-| Total LLM calls (8 questions) | 82 |
+Numbers below are from one local run — reproduce with the command above,
+your own numbers may vary slightly (live web search, not a fixed corpus).
 
-Citation coverage/validity/grounding are not meaningful in mock-LLM mode (the
-mock model emits fixed placeholder text) — run with `--live` and a real
-`OPENAI_API_KEY` to measure those. Full per-question output is committed at
-[`evaluation/results/latest_results.json`](evaluation/results/latest_results.json).
+| Metric | Value | Meaningful in mock mode? |
+|---|---|---|
+| Retrieval relevance (avg) | 0.49 | ✅ yes — real sources, lexical scoring |
+| Source diversity (avg) | 0.87 | ✅ yes |
+| Report completeness (avg) | 1.0 | ✅ yes |
+| Search success rate (avg) | 1.0 | ✅ yes |
+| Evidence retention (avg) | 1.0 | ✅ yes |
+| Insufficient-evidence rate | 0.09 (2/22 questions) | ✅ yes |
+| Citation coverage / validity, quote validity | 0.0 / n/a / n/a | ❌ **no** — mock LLM emits fixed placeholder text with no citations or quotes by design |
+| Avg latency | ~9.6s | partly — dominated by real search/fetch, not LLM |
+| Total LLM calls (22 questions) | 191 | — |
+
+Citation validity, quote validity, and citation coverage only measure
+something real in **`--live`** mode with a real `OPENAI_API_KEY` — the
+numbers above are reported honestly as not applicable in mock mode rather
+than presented as if they demonstrated real model quality.
 
 ## Limitations
 
@@ -224,8 +302,17 @@ mock model emits fixed placeholder text) — run with `--live` and a real
 - The pipeline runs once per question; it does not re-plan or loop back if
   early evidence looks thin (by design, to keep cost/latency bounded) — it
   instead reports "insufficient evidence" honestly.
-- Evaluation dataset is 8 questions — enough to sanity-check behavior, not a
-  statistically rigorous benchmark.
+- Quote verification is a literal (normalized substring) check, not semantic
+  similarity — a quote that is accurate but reworded by the model will
+  correctly fail verification even though the underlying claim may still be
+  true; this is a deliberate precision-over-recall tradeoff for an "is this
+  provably real" guarantee.
+- Citation validation guarantees every surviving `[n]` marker points at an
+  actually-retrieved source; it does not verify that the claim next to the
+  marker is itself accurate — that's what evidence/quote verification and
+  the verifier's LLM pass are for, each catching a different failure mode.
+- Evaluation dataset is ~22 questions across 6 categories — enough to
+  sanity-check behavior broadly, not a statistically rigorous benchmark.
 
 ## Future improvements
 
@@ -295,8 +382,12 @@ pip install -r requirements.txt pytest
 pytest -q
 ```
 
-23 tests covering: source-quality heuristics, relevance scoring, the TTL
-cache, the full offline pipeline (Planner → Synthesizer with mock providers,
+54 tests covering: source-quality heuristics, relevance scoring, the TTL
+cache and cache-hit tracking, citation-marker sanitization (valid/invalid/
+missing/multiple), deterministic quote verification (exact/whitespace/
+missing/malformed), paragraph-relevance context selection, explicit
+subquestion↔query mapping (including uneven query counts per subquestion),
+the full offline pipeline (Planner → Synthesizer with mock providers,
 including the citation-grounding invariant), and an API-level smoke test
 that exercises the real FastAPI app end-to-end.
 
@@ -317,7 +408,8 @@ ai-research-agent/
 │   │   ├── api/            # FastAPI routes
 │   │   ├── llm/            # LLM provider abstraction + prompts
 │   │   ├── models/         # Pydantic schemas (shared state contracts)
-│   │   ├── services/       # cache, quality heuristic, relevance, jobs, storage
+│   │   ├── services/       # cache, quality, relevance, context selection,
+│   │   │                    # citation validation, quote verification, jobs, storage
 │   │   ├── tools/           # search + fetch tools
 │   │   ├── config.py
 │   │   └── main.py

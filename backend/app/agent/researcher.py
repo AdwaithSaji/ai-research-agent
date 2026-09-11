@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from dataclasses import dataclass
 
 from app.config import Settings
 from app.models.schemas import ResearchPlan, Source
@@ -19,6 +20,14 @@ from app.tools.search import SearchProvider, domain_of
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class GatherStats:
+    searches_performed: int = 0  # network search calls actually made (cache misses)
+    cache_hits: int = 0  # search + page-fetch results served from cache
+    queries_attempted: int = 0
+    queries_with_results: int = 0  # queries that returned >=1 usable hit
+
+
 async def gather_sources(
     plan: ResearchPlan,
     search_provider: SearchProvider,
@@ -27,30 +36,34 @@ async def gather_sources(
     page_cache: TTLCache[tuple],
     excluded_domains: list[str] | None = None,
     preferred_domains: list[str] | None = None,
-) -> tuple[list[Source], int]:
-    """Returns (sources, searches_performed)."""
+) -> tuple[list[Source], GatherStats]:
+    """Returns (sources, stats)."""
     excluded = {d.lower() for d in (excluded_domains or [])}
     preferred = {d.lower() for d in (preferred_domains or [])}
-    n_subq = max(1, len(plan.subquestions))
+
+    stats = GatherStats(queries_attempted=len(plan.search_queries))
 
     # 1. Run searches (deduped queries already guaranteed by planner), cache hits.
-    searches_performed = 0
     seen_urls: set[str] = set()
     candidates: list[tuple[str, str, str, str]] = []  # (title, url, snippet, query)
 
-    for i, query in enumerate(plan.search_queries):
+    for query in plan.search_queries:
         cache_key = normalize_key(search_provider.name, query)
         cached = search_cache.get(cache_key)
         if cached is not None:
             hits = cached
+            stats.cache_hits += 1
         else:
             try:
                 hits = await search_provider.search(query, settings.max_results_per_query)
                 search_cache.set(cache_key, hits)
-                searches_performed += 1
+                stats.searches_performed += 1
             except Exception as exc:  # noqa: BLE001
                 logger.warning("Search failed for query %r: %s", query, exc)
                 hits = []
+
+        if hits:
+            stats.queries_with_results += 1
 
         for hit in hits:
             if not hit.url or hit.url in seen_urls:
@@ -88,6 +101,7 @@ async def gather_sources(
         cached = page_cache.get(cache_key)
         if cached is not None:
             ok, page_title, text, error = cached
+            stats.cache_hits += 1
         else:
             async with semaphore:
                 result = await fetch_and_extract(url, settings)
@@ -111,15 +125,15 @@ async def gather_sources(
         )
 
     sources = await asyncio.gather(*(fetch_one(*c) for c in selected))
-    return list(sources), searches_performed
+    return list(sources), stats
 
 
 def subquestion_for_query(plan: ResearchPlan, query: str) -> str:
-    """Maps a search query back to the subquestion that generated it (best effort)."""
-    if not plan.search_queries or not plan.subquestions:
-        return plan.subquestions[0] if plan.subquestions else query
-    try:
-        idx = plan.search_queries.index(query)
-    except ValueError:
-        idx = 0
-    return plan.subquestions[idx % len(plan.subquestions)]
+    """Maps a search query back to the subquestion that generated it.
+
+    An exact lookup against the plan's explicit subquestion -> queries[]
+    structure (see `ResearchPlan.subquestion_for_query`) — never a positional
+    `index % len(subquestions)` guess, which breaks as soon as the number of
+    queries and subquestions differ.
+    """
+    return plan.subquestion_for_query(query)

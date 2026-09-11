@@ -14,6 +14,7 @@ export function ReportView({ report, usage }: Props) {
   return (
     <div className="report-view">
       <UsageBar usage={usage} />
+      <GroundingBar stats={report.quality_stats} />
 
       {report.insufficient_evidence && (
         <div className="banner banner-warning">
@@ -138,6 +139,20 @@ function UsageBar({ usage }: { usage: UsageStats }) {
       <Stat label="LLM calls" value={usage.llm_calls} />
       <Stat label="Duration" value={`${usage.duration_seconds.toFixed(1)}s`} />
       <Stat label="Est. cost" value={`$${usage.estimated_cost_usd.toFixed(4)}`} />
+    </div>
+  );
+}
+
+function GroundingBar({ stats }: { stats: ResearchReport["quality_stats"] }) {
+  const pct = (v: number | null) => (v === null ? "n/a" : `${Math.round(v * 100)}%`);
+  return (
+    <div className="usage-bar grounding-bar" title="Computed deterministically by backend code, not self-reported by the LLM">
+      <Stat label="Evidence kept" value={`${stats.evidence_kept_after_verification}/${stats.total_evidence_extracted}`} />
+      <Stat label="Quotes verified" value={pct(stats.quote_validity_rate)} />
+      <Stat label="Citations valid" value={pct(stats.citation_validity_rate)} />
+      {stats.citation_markers_invalid_removed > 0 && (
+        <Stat label="Invalid citations removed" value={stats.citation_markers_invalid_removed} />
+      )}
     </div>
   );
 }

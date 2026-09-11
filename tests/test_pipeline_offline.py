@@ -38,10 +38,10 @@ def test_full_pipeline_runs_offline_and_grounds_citations(settings):
         assert plan.subquestions
         assert plan.search_queries
 
-        sources, searches_performed = await gather_sources(
+        sources, gather_stats = await gather_sources(
             plan, search_provider, settings, TTLCache(), TTLCache()
         )
-        assert searches_performed > 0
+        assert gather_stats.searches_performed > 0
         assert len(sources) > 0
         # MockSearchProvider returns example.org URLs: the real fetch step still
         # runs against them (this test is offline for search/LLM, not fetch), so
@@ -75,14 +75,17 @@ def test_full_pipeline_runs_offline_and_grounds_citations(settings):
     assert report.question
     assert report.methodology
     assert isinstance(report.insufficient_evidence, bool)
+    # Deterministic quality stats must be present and internally consistent.
+    assert report.quality_stats.total_evidence_extracted == len(evidence)
+    assert report.quality_stats.evidence_kept_after_verification <= len(evidence)
 
 
 def test_insufficient_evidence_flag_when_no_sources(settings):
-    from app.models.schemas import ResearchPlan, VerificationResult
+    from app.models.schemas import ResearchPlan, SubquestionPlan, VerificationResult
 
     async def run():
         llm = MockLLMClient()
-        plan = ResearchPlan(subquestions=["q1"], search_queries=["q1"])
+        plan = ResearchPlan(items=[SubquestionPlan(subquestion="q1", search_queries=["q1"])])
         verification = VerificationResult(kept_evidence_ids=[], dropped_evidence_ids=[])
         return await synthesize_report("test question", [], [], verification, 1, llm, settings)
 
@@ -90,3 +93,4 @@ def test_insufficient_evidence_flag_when_no_sources(settings):
     assert report.insufficient_evidence is True
     assert report.sources == []
     assert report.citations == []
+    assert report.quality_stats.total_evidence_extracted == 0

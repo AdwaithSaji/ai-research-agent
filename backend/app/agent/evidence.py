@@ -15,6 +15,8 @@ from app.config import Settings
 from app.llm.client import LLMClient, LLMError
 from app.llm.prompts import EVIDENCE_ANALYST_SYSTEM
 from app.models.schemas import Evidence, ResearchPlan, Source
+from app.services.context_selection import select_relevant_context
+from app.services.quote_verification import verify_quote
 from app.services.relevance import relevance_score
 
 logger = logging.getLogger(__name__)
@@ -41,7 +43,10 @@ async def extract_evidence(
 
     async def analyze_one(source: Source) -> list[Evidence]:
         subquestion = subquestion_for_query(plan, source.query)
-        trimmed = source.content[: settings.max_evidence_chars_per_source]
+        # Paragraph-relevance selection instead of a naive prefix slice: keeps
+        # the paragraphs most likely to answer the subquestion even if they
+        # appear later in the page, within the same character budget.
+        trimmed = select_relevant_context(source.content, subquestion, settings.max_evidence_chars_per_source)
         user = f"Subquestion: {subquestion}\n\nSource text:\n{trimmed}"
         async with semaphore:
             try:
@@ -55,13 +60,18 @@ async def extract_evidence(
             text = str(claim.get("claim", "")).strip()
             if not text:
                 continue
+            quote = str(claim.get("quote", ""))[:300]
             results.append(
                 Evidence(
                     source_id=source.id,
                     subquestion=subquestion,
                     claim=text,
-                    quote=str(claim.get("quote", ""))[:300],
+                    quote=quote,
                     supports_answer=bool(claim.get("supports_answer", True)),
+                    # Deterministic check against the FULL retrieved content
+                    # (not just the trimmed context sent to the LLM) — the
+                    # model is never trusted to self-report this.
+                    quote_verified=verify_quote(quote, source.content),
                 )
             )
         return results
