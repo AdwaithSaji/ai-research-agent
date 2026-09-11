@@ -1,0 +1,42 @@
+[
+  {
+    "id": "hallucination-reduction",
+    "question": "Compare current approaches for reducing hallucinations in large language models.",
+    "depth": "standard"
+  },
+  {
+    "id": "rag-vs-finetuning",
+    "question": "What are the tradeoffs between retrieval-augmented generation and fine-tuning for domain adaptation?",
+    "depth": "standard"
+  },
+  {
+    "id": "vector-db-choice",
+    "question": "What factors should guide the choice of a vector database for a production RAG system?",
+    "depth": "quick"
+  },
+  {
+    "id": "llm-evaluation-metrics",
+    "question": "What metrics are commonly used to evaluate the factual accuracy of language model outputs?",
+    "depth": "standard"
+  },
+  {
+    "id": "agentic-workflows",
+    "question": "What are the main design patterns for building reliable multi-step AI agent workflows?",
+    "depth": "standard"
+  },
+  {
+    "id": "prompt-injection-defense",
+    "question": "What are effective defenses against prompt injection attacks on LLM applications?",
+    "depth": "quick"
+  },
+  {
+    "id": "context-window-tradeoffs",
+    "question": "What are the practical tradeoffs of very long context windows versus retrieval for LLM applications?",
+    "depth": "standard"
+  },
+  {
+    "id": "open-vs-closed-models",
+    "question": "How do open-weight language models compare to closed commercial models for enterprise use?",
+    "depth": "standard"
+  }
+]

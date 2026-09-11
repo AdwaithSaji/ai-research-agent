@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Env / secrets
+.env
+backend/.env
+
+# Databases
+*.db
+*.db-journal
+backend/research_agent.db
+
+# Node / frontend
+node_modules/
+frontend/dist/
+frontend/.vite/
+npm-debug.log*
+
+# Evaluation outputs
+evaluation/results/*.json
+!evaluation/results/.gitkeep
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+*.log
