@@ -176,8 +176,12 @@ retrieved sources** — never trusted to the LLM:
 3. The frontend renders `[n]` markers as jump links to the actual source
    card, so every surviving claim is one click from its source.
 
-This guarantees the report can never cite a source that wasn't retrieved,
-regardless of what the model tries to write.
+**Citation validation guarantees that every surviving citation marker maps to
+a source actually retrieved by the system; it does not guarantee that every
+cited claim is factually correct or fully supported by that source.** That
+narrower guarantee — whether a claim's evidence is actually backed by the
+source text — is what [evidence verification](#evidence-verification) and
+the verifier's checks are for.
 
 ## Evidence verification
 
@@ -188,8 +192,13 @@ source's actual retrieved content
 after normalizing whitespace, smart quotes/dashes, and case, so harmless
 formatting differences don't cause false failures, but a genuine paraphrase
 correctly fails. The result is stored on `Evidence.quote_verified`; it is
-never rewritten into a "verified" quote if the check fails. Aggregate
-`quotes_attempted` / `quotes_verified` counts land on `report.quality_stats`.
+never rewritten into a "verified" quote if the check fails. An evidence item
+that supplied a quote but failed this check is dropped by the verifier
+(`app/agent/verifier.py`) before synthesis — it is never presented as
+verified evidence downstream, regardless of what the LLM verifier pass
+says. Quote-less evidence (no quote attempted) is unaffected by this check.
+Aggregate `quotes_attempted` / `quotes_verified` counts land on
+`report.quality_stats`.
 
 ## Retrieval & content selection
 

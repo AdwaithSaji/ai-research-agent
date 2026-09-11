@@ -22,12 +22,20 @@ async def verify_evidence(
     sources_by_id = {s.id: s for s in sources}
 
     # Deterministic pre-filter: drop evidence attached to very low quality
-    # sources or with no supporting quote at all, before spending an LLM call.
+    # sources, before spending an LLM call. Also enforce quote grounding here
+    # — an evidence item that supplied a quote but failed deterministic
+    # verification (Evidence.quote_verified == False) must never be treated
+    # as verified evidence downstream, no matter what the LLM verifier says.
+    # Quote-less evidence (no quote attempted at all) is unaffected by this
+    # check and keeps flowing per the existing design.
     prefiltered: list[Evidence] = []
     prefiltered_out: list[str] = []
     for e in evidence:
         source = sources_by_id.get(e.source_id)
         if source and source.quality_score < _MIN_QUALITY_FLOOR:
+            prefiltered_out.append(e.id)
+            continue
+        if e.quote.strip() and not e.quote_verified:
             prefiltered_out.append(e.id)
             continue
         prefiltered.append(e)
