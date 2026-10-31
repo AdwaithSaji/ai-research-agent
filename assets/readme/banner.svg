@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 340" width="1280" height="340" role="img" aria-labelledby="t d">
+  <title id="t">AI Research Agent</title>
+  <desc id="d">AI Research Agent runs a fixed five-stage pipeline: plan, search, analyze, verify, synthesize.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#12181b"/><stop offset="1" stop-color="#0a0d0f"/></linearGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#ffffff" stroke-opacity="0.035"/></pattern>
+  </defs>
+  <rect width="1280" height="340" rx="16" fill="url(#bg)"/>
+  <rect width="1280" height="340" rx="16" fill="url(#grid)"/>
+  <rect x="0.5" y="0.5" width="1279" height="339" rx="15.5" fill="none" stroke="#ffffff" stroke-opacity="0.08"/>
+  <g font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif">
+    <text x="72" y="82" font-size="15" letter-spacing="4" fill="#34d399" font-weight="600">RESEARCH LAB / PROJECT 01</text>
+    <text x="72" y="152" font-size="64" letter-spacing="3" fill="#f1f5f4" font-weight="700">AI RESEARCH AGENT</text>
+    <text x="74" y="192" font-size="22" fill="#8fa0a5">Bounded, citation-grounded, multi-source research.</text>
+  </g>
+  <rect x="72" y="258" width="1136" height="3" rx="1.5" fill="#26333a"/>
+  <circle cx="120" cy="259.5" r="9" fill="#0f1417" stroke="#34d399" stroke-width="2.5"/>
+  <text x="120" y="300" text-anchor="middle" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" fill="#c3cfd2" letter-spacing="1">PLAN</text>
+  <circle cx="380" cy="259.5" r="9" fill="#0f1417" stroke="#34d399" stroke-width="2.5"/>
+  <text x="380" y="300" text-anchor="middle" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" fill="#c3cfd2" letter-spacing="1">SEARCH</text>
+  <circle cx="640" cy="259.5" r="9" fill="#0f1417" stroke="#34d399" stroke-width="2.5"/>
+  <text x="640" y="300" text-anchor="middle" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" fill="#c3cfd2" letter-spacing="1">ANALYZE</text>
+  <circle cx="900" cy="259.5" r="9" fill="#0f1417" stroke="#34d399" stroke-width="2.5"/>
+  <text x="900" y="300" text-anchor="middle" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" fill="#c3cfd2" letter-spacing="1">VERIFY</text>
+  <circle cx="1160" cy="259.5" r="11" fill="#34d399" stroke="#34d399" stroke-width="2.5"/>
+  <text x="1160" y="300" text-anchor="middle" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" fill="#c3cfd2" letter-spacing="1">SYNTHESIZE</text>
+</svg>
